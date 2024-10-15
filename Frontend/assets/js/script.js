@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", function() {
+    // Cập nhật giá trị nhiệt độ, độ ẩm, ánh sáng và thay đổi màu nền
     function updateTempCard(temp) {
         const tempCard = $('#card-temp');
         if (temp <= 20) {
@@ -23,7 +24,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function updateLightCard(light) {
         const lightCard = $('#card-light');
-        if (light <= 200) {
+        if (light <= 100) {
             lightCard.removeClass().addClass('card text-black card-stateful bg-low-light');
         } else if (light > 200 && light <= 800) {
             lightCard.removeClass().addClass('card text-black card-stateful bg-normal-light');
@@ -32,7 +33,6 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    // Cập nhật giá trị nhiệt độ, độ ẩm, ánh sáng và thay đổi màu nền
     function updateSensorData(temp, humid, light) {
         $('#text-temp').text(temp + ' °C');
         $('#text-humid').text(humid + ' %');
@@ -42,27 +42,53 @@ document.addEventListener("DOMContentLoaded", function() {
         updateLightCard(light);
     }
 
-    // Ví dụ với dữ liệu ngẫu nhiên cập nhật mỗi 5 giây
-    function getRandomValue(min, max) {
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
-
-    setInterval(function() {
-        const temp = getRandomValue(10, 40); // Nhiệt độ từ 10°C đến 40°C
-        const humid = getRandomValue(30, 90); // Độ ẩm từ 30% đến 90%
-        const light = getRandomValue(100, 1000); // Ánh sáng từ 100 đến 1000 lux
-        updateSensorData(temp, humid, light);
-    }, 3000); // Cập nhật mỗi 3 giây
     const data = {
-        temperature: [22, 30, 26, 28, 30, 27, 28],
-        humidity: [70, 62, 61, 69, 64, 65, 66],
-        light: [400, 450, 420, 430, 440, 460, 470],
-        labels: ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00']
+        temperature: [],
+        humidity: [],
+        light: [],
+        labels: []
     };
 
-    document.getElementById("text-temp").textContent = data.temperature[data.temperature.length - 1] + " °C";
-    document.getElementById("text-humid").textContent = data.humidity[data.humidity.length - 1] + " %";
-    document.getElementById("text-light").textContent = data.light[data.light.length - 1] + " lux";
+    const ws = new WebSocket('ws://localhost:8080'); // Thay bằng địa chỉ của WebSocket server
+    
+    ws.onmessage = (event) => {
+        try {
+            const msg = event.data.trim();
+            const [tempData, humData, lightData] = msg.split(", ").map(item => item.split(": ")[1]);
+            const temp = parseFloat(tempData.split(" ")[0]);
+            const humid = parseFloat(humData.split("%")[0]);
+            const light = parseFloat(lightData.split(" ")[0]);
+            const currentTime = new Date().toLocaleTimeString();
+
+            // Cập nhật dữ liệu mới vào mảng và giới hạn số lượng điểm dữ liệu (7 điểm)
+            if (data.temperature.length >= 15) {
+                data.temperature.shift();
+                data.humidity.shift();
+                data.light.shift();
+                data.labels.shift();
+            }
+
+            data.temperature.push(temp);
+            data.humidity.push(humid);
+            data.light.push(light);
+            data.labels.push(currentTime);
+
+            updateSensorData(temp, humid, light);
+
+            // Cập nhật lại biểu đồ với dữ liệu mới
+            lineChart.update();
+        } catch (e) {
+            console.error("Error parsing data:", e);
+        }
+    };
+
+    ws.onopen = () => {
+        console.log('WebSocket đã kết nối');
+    };
+
+    ws.onclose = () => {
+        console.log('WebSocket đã đóng');
+    };
 
     const ctx = document.getElementById('myChart').getContext('2d');
     const lineChart = new Chart(ctx, {
@@ -81,7 +107,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     label: 'Độ ẩm (%)',
                     data: data.humidity,
                     borderColor: 'blue',
-                    backgroundColor:'blue',
+                    backgroundColor: 'blue',
                     fill: false,
                 },
                 {
