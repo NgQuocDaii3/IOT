@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch sử bật/tắt</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css"
+        integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
+        integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="./style.css" />
+    <style>
+        .pagination {
+            justify-content: center;
+        }
+
+        th.sortable:hover {
+            cursor: pointer;
+            color: #007bff;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg bg-light fixed-top navbar-light">
+        <div class="container-fluid" style="justify-content: end;">
+            <a class="navbar-brand" href="#">
+                <img src="https://getbootstrap.com/docs/5.3/assets/brand/bootstrap-logo.svg" alt="Bootstrap" width="30"
+                    height="24">
+                <b style="margin-left: 1rem;">IOT Dashboard</b>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
+                aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" aria-current="page" href="./index.html">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="./history.html">Action History</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" aria-current="page" href="./statistic.html">Data Senser</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" aria-current="page" href="./profile.html">Profile</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main container">
+        <div class="container mt-5">
+            <h2 class="mb-4">Action History</h2>
+        
+            <!-- Search Bar -->
+            <div class="input-group mb-3">
+              <input id="search-input" type="text" class="form-control" placeholder="Tìm kiếm theo thời gian bật/tắt">
+              <button class="btn btn-primary" id="search-btn">Tìm kiếm</button>
+            </div>
+        
+            <!-- Device history table -->
+            <table class="table table-bordered table-striped">
+              <thead>
+                <tr style="background-color: black ; color: white;">
+                  <th scope="col" class="sortable" data-sort="id" onclick="sortTable(0)">ID <i class="fas fa-sort"></i></th>
+                  <th scope="col" class="sortable" data-sort="deviceName" onclick="sortTable(1)">Tên Thiết bị <i class="fas fa-sort"></i></th>
+                  <th scope="col" class="sortable" data-sort="action" onclick="sortTable(2)">Hành động <i class="fas fa-sort"></i></th>
+                  <th scope="col" class="sortable" data-sort="time" onclick="sortTable(3)">Thời gian bật/tắt <i class="fas fa-sort"></i></th>
+                </tr>
+              </thead>
+              <tbody id="device-history">
+                <!-- Data -->
+              </tbody>
+            </table>
+        
+            <!-- Phân trang -->
+            <div class="d-flex justify-content-between align-items-center">
+              <button class="btn btn-secondary" id="prev-page" style="background-color: #007bff;">Trang trước</button>
+              <input type="number" class="form-control mx-2" id="page-number" style="width: 80px;" value="1" min="1">
+              <button class="btn btn-secondary" id="next-page" style="background-color: #007bff;">Trang sau</button>
+            </div>
+        
+            <!-- Page Size -->
+            <div class="mt-3">
+              <label for="page-size">Số dòng mỗi trang:</label>
+              <input type="number" id="page-size" class="form-control" style="width: 100px;" value="20" min="1">
+            </div>
+          </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+        integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"
+        integrity="sha384-oBqDVmMz5hY5tYpYxg7o2vg0xAAt7CF6+6qINej/IIBSc8cBvQBI4tLpg+23N8QA" crossorigin="anonymous">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.min.js"
+        integrity="sha384-cu8pYVY1jP4T+zAwIlwut4RY7MlI5H2HfYsIxlz5Dq/yQ9pgF0pJp7cxR7BZSJs" crossorigin="anonymous">
+    </script>
+
+    <script src="assets/js/history.js"></script>
+</body>
+
+</html>
