@@ -6,7 +6,7 @@ const mysql = require('mysql2');
 const cors = require('cors');
 
 // MQTT broker information
-const mqttHost = 'mqtt://192.168.1.144';
+const mqttHost = 'mqtt://192.168.93.34';
 const mqttUser = 'dai';
 const mqttPassword = 'b21dccn025';
 const topic = 'data';
@@ -120,74 +120,6 @@ mqttClient.on('message', (topic, message) => {
         });
     }
 });
-
-// API thêm sensor data vào mysql
-app.post('/api/sensor', (req, res) => {
-    const { temperature, humidity, light } = req.body;
-
-    if (!temperature || !humidity || !light) {
-        return res.status(400).json({ error: 'Missing required data' });
-    }
-
-    const currentTime = new Date();
-    currentTime.setHours(currentTime.getHours() + 7);
-    const formattedTime = currentTime.toISOString().slice(0, 19).replace('T', ' ');
-
-    const insertSensorData = `INSERT INTO datasenser (nhiệt_độ, độ_ẩm, ánh_sáng, thời_gian_đo) VALUES (?, ?, ?, ?)`;
-    db.query(insertSensorData, [temperature, humidity, light, formattedTime], (err) => {
-        if (err) {
-            console.error('Error inserting sensor data:', err);
-            return res.status(500).json({ error: 'Database error' });
-        }
-        res.status(200).json({ message: 'Sensor data inserted successfully' });
-    });
-});
-
-// API thêm action data vào mysql
-app.post('/api/action', (req, res) => {
-    const { device, action } = req.body;
-
-    if (!device || !action) {
-        return res.status(400).json({ error: 'Missing required data' });
-    }
-
-    const currentTime = new Date();
-    currentTime.setHours(currentTime.getHours() + 7);
-    const formattedTime = currentTime.toISOString().slice(0, 19).replace('T', ' ');
-
-    const insertActionData = `INSERT INTO actionhistory (tên_thiết_bị, hành_động, thời_gian_bật_tắt) VALUES (?, ?, ?)`;
-    db.query(insertActionData, [device, action, formattedTime], (err) => {
-        if (err) {
-            console.error('Error inserting action data:', err);
-            return res.status(500).json({ error: 'Database error' });
-        }
-        res.status(200).json({ message: `${device} ${action} action logged successfully` });
-    });
-});
-// API lấy dữ liệu bảng action history
-app.get('/api/action-history', (req, res) => {
-    const query = 'SELECT id, tên_thiết_bị AS deviceName, hành_động AS action, thời_gian_bật_tắt AS time FROM actionhistory';
-
-    db.query(query, (err, results) => {
-        if (err) {
-            console.error('Error retrieving data:', err);
-            return res.status(500).json({ error: 'Database error' });
-        }
-        res.json(results);
-    });
-});
-// Tạo API để lấy dữ liệu từ bảng datasenser
-app.get('/api/sensor-data', (req, res) => {
-    const query = 'SELECT id, nhiệt_độ AS temperature, độ_ẩm AS humidity, ánh_sáng AS light, thời_gian_đo AS time FROM datasenser';
-
-    db.query(query, (err, results) => {
-        if (err) {
-            console.error('Lỗi khi lấy dữ liệu:', err);
-            return res.status(500).json({ error: 'Lỗi cơ sở dữ liệu' });
-        }
-        res.json(results);
-    });
-});
 app.use(express.static('public'));
 const path = require('path');
 
@@ -195,73 +127,106 @@ const path = require('path');
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+// API lấy dữ liệu bảng action history
+app.get('/api/action-history', (req, res) => {
+    const { page = 1, pageSize = 10 } = req.query; // Lấy page và pageSize từ query, mặc định page = 1 và pageSize = 10
+    const offset = (page - 1) * pageSize; // Tính toán offset cho phân trang
+    
+    const query = `
+        SELECT id, tên_thiết_bị AS deviceName, hành_động AS action, thời_gian_bật_tắt AS time 
+        FROM actionhistory
+        LIMIT ? OFFSET ?
+    `;
+
+    db.query(query, [parseInt(pageSize), offset], (err, results) => {
+        if (err) {
+            console.error('Error retrieving data:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        res.json(results);
+    });
+});
+
 //api search&sort devicehistory
 app.get('/api/device-history', (req, res) => {
-    const { search, sortBy, sortOrder } = req.query;
-  
+    const { search, sortBy, sortOrder, page = 1, pageSize = 10 } = req.query; 
+    // Lấy page và pageSize từ query, mặc định page = 1 và pageSize = 10
+    const offset = (page - 1) * pageSize;
+    
     let query = 'SELECT * FROM actionhistory';
     let conditions = [];
   
-    // điều kiện
+    // Điều kiện search
     if (search) {
-      conditions.push(`thời_gian_bật_tắt LIKE '%${search}%'`);
+        conditions.push(`thời_gian_bật_tắt LIKE '%${search}%'`);
     }
   
-    // thêm query
+    // Thêm query điều kiện
     if (conditions.length) {
-      query += ' WHERE ' + conditions.join(' AND ');
+        query += ' WHERE ' + conditions.join(' AND ');
     }
   
     // Sort
     if (sortBy && sortOrder) {
-      query += ` ORDER BY ${sortBy} ${sortOrder}`;
+        query += ` ORDER BY ${sortBy} ${sortOrder}`;
     }
-  
-    // Thực hiện the query
-    db.query(query, (err, results) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.json(results);
+
+    // Phân trang
+    query += ` LIMIT ? OFFSET ?`;
+
+    // Thực hiện query với phân trang
+    db.query(query, [parseInt(pageSize), offset], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
     });
-  });
+});
 
 
-//api search & sort sensordata
-app.get('/api/data', (req, res) => {
-    const { temperature, humidity, light, time, sort_by, order } = req.query;
-  
-    let query = 'SELECT * FROM datasenser WHERE 1=1';
-  
-    // Search 
+// Tạo API để lấy dữ liệu từ bảng datasenser, bao gồm tìm kiếm, sắp xếp và phân trang
+app.get('/api/sensor-data', (req, res) => {
+    const { temperature, humidity, light, time, sort_by, order, page = 1, pageSize = 10 } = req.query;
+
+    let query = 'SELECT id, nhiệt_độ AS temperature, độ_ẩm AS humidity, ánh_sáng AS light, thời_gian_đo AS time FROM datasenser WHERE 1=1';
+
+    // Search conditions
     if (temperature) query += ` AND nhiệt_độ LIKE ${db.escape(temperature)}`;
     if (humidity) query += ` AND độ_ẩm LIKE ${db.escape(humidity)}`;
     if (light) query += ` AND ánh_sáng LIKE ${db.escape(light)}`;
     if (time) query += ` AND thời_gian_đo LIKE ${db.escape('%' + time + '%')}`;
-  
-    // Sort
+
+    // Sorting conditions
     const validSortColumns = {
-      id: 'id',
-      temperature: 'nhiệt_độ',
-      humidity: 'độ_ẩm',
-      light: 'ánh_sáng',
-      time: 'thời_gian_đo'
+        id: 'id',
+        temperature: 'nhiệt_độ',
+        humidity: 'độ_ẩm',
+        light: 'ánh_sáng',
+        time: 'thời_gian_đo'
     };
-  
+
     if (validSortColumns[sort_by]) {
-      const column = validSortColumns[sort_by];
-      const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
-      query += ` ORDER BY ${column} ${sortOrder}`;
+        const column = validSortColumns[sort_by];
+        const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
+        query += ` ORDER BY ${column} ${sortOrder}`;
     }
-  
-    db.query(query, (err, results) => {
-      if (err) {
-        res.status(500).json({ error: 'Database query error' });
-      } else {
-        res.json(results);
-      }
+
+    // Pagination logic
+    const offset = (page - 1) * pageSize;
+    query += ` LIMIT ? OFFSET ?`;
+
+    // Execute the query
+    db.query(query, [parseInt(pageSize), offset], (err, results) => {
+        if (err) {
+            console.error('Database query error:', err);
+            res.status(500).json({ error: 'Database query error' });
+        } else {
+            res.json(results);
+        }
     });
-  });
+});
+
   
 // Start the Express server
 app.listen(PORT, () => {

@@ -2,50 +2,101 @@ let data = [];
 let currentPage = 1;
 let pageSize = 20;
 let sortedColumn = null;
-let sortDirection = 1; // 1 cho tăng dần, -1 cho giảm dần
+let sortDirection = 1; // 1 for ascending, -1 for descending
+let searchParams = {}; // Lưu các tham số tìm kiếm
+let sortParams = {}; // Lưu các tham số sắp xếp
 
-// Hàm lấy dữ liệu từ API
+// Fetch data from the API
+// Hàm lấy dữ liệu từ API với phân trang
 async function fetchData() {
     try {
-        const response = await fetch('http://localhost:3000/api/sensor-data');
+        // Tạo URL từ các tham số tìm kiếm và sắp xếp
+        let query = `http://localhost:3000/api/sensor-data?page=${currentPage}&pageSize=${pageSize}`;
+
+        // Thêm các tham số tìm kiếm vào URL nếu có
+        for (const key in searchParams) {
+            if (searchParams[key]) {
+                query += `&${key}=${encodeURIComponent(searchParams[key])}`;
+            }
+        }
+
+        // Thêm các tham số sắp xếp vào URL nếu có
+        if (sortParams.sort_by) {
+            query += `&sort_by=${sortParams.sort_by}&order=${sortParams.order}`;
+        }
+
+        const response = await fetch(query);
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
+
         data = await response.json();
-        displayData(data);
+        displayData(data); // Hiển thị dữ liệu trên giao diện
+        updatePaginationControls();
     } catch (error) {
         console.error('Lỗi khi lấy dữ liệu:', error);
     }
 }
-//chuyển múi giờ
+
+
+
+// Convert time to UTC+7
 function convertToUTC7(timeString) {
     const utcDate = new Date(timeString);
-    // Thêm 7 giờ vào thời gian
+    // Add 7 hours to the time
     utcDate.setHours(utcDate.getHours() + 7);
-    return utcDate.toISOString().replace('T', ' ').substring(0, 19); // Chuyển sang định dạng YYYY-MM-DD HH:MM:SS
+    return utcDate.toISOString().replace('T', ' ').substring(0, 19); // Format as YYYY-MM-DD HH:MM:SS
 }
-// Hàm hiển thị dữ liệu trong bảng
+
+// Display data in the table
 function displayData(filteredData) {
-    const startIndex = (currentPage - 1) * pageSize;
-    const paginatedData = filteredData.slice(startIndex, startIndex + pageSize);
+    
 
     const tableBody = $('#device-data');
     tableBody.empty();
 
-    paginatedData.forEach(item => {
+    filteredData.forEach(item => {
         tableBody.append(`
             <tr>
                 <td>${item.id}</td>
                 <td>${item.temperature}</td>
                 <td>${item.humidity}</td>
                 <td>${item.light}</td>
-                <td>${item.time = convertToUTC7(item.time)}</td>
+                <td>${convertToUTC7(item.time)}</td>
             </tr>
         `);
     });
 }
+// Cập nhật các nút điều hướng trang
+function updatePaginationControls() {
+    const paginationControls = $('#pagination-controls');
+    paginationControls.empty();
 
-// Hàm sắp xếp dữ liệu
+    // Tạo nút Previous
+    if (currentPage > 1) {
+        paginationControls.append(`<button onclick="changePage(currentPage - 1)">Previous</button>`);
+    }
+
+    // Tạo nút Next (cần điều chỉnh nếu có tổng số bản ghi từ server)
+    paginationControls.append(`<button onclick="changePage(currentPage + 1)">Next</button>`);
+}
+
+// Chuyển trang
+function changePage(newPage) {
+    currentPage = newPage;
+    
+    fetchData();
+}
+// Pagination handling
+
+
+$('#page-size').change(function() {
+    pageSize = parseInt($(this).val());
+    currentPage = 1;
+    fetchData();
+});
+
+// Sort data
 function sortData(data, column) {
     data.sort((a, b) => {
         if (a[column] < b[column]) return -1 * sortDirection;
@@ -54,99 +105,71 @@ function sortData(data, column) {
     });
 }
 
-// Hiển thị dữ liệu ban đầu
-fetchData();
-
-// Xử lý phân trang
-$('#prev-page').click(() => {
-    if (currentPage > 1) {
-        currentPage--;
-        displayData(data);
-    }
-});
-
-$('#next-page').click(() => {
-    const totalPages = Math.ceil(data.length / pageSize);
-    if (currentPage < totalPages) {
-        currentPage++;
-        displayData(data);
-    }
-});
-
-$('#page-number').change(function() {
-    const newPage = parseInt($(this).val());
-    const totalPages = Math.ceil(data.length / pageSize);
-
-    if (newPage >= 1 && newPage <= totalPages) {
-        currentPage = newPage;
-        displayData(data);
-    }
-});
-
-$('#page-size').change(function() {
-    pageSize = parseInt($(this).val());
-    displayData(data);
-});
-//search theo từng loại
+// Search by specific fields
 document.getElementById('search-btn').addEventListener('click', () => {
     const temp = document.getElementById('temp-search').value;
     const humidity = document.getElementById('humidity-search').value;
     const light = document.getElementById('light-search').value;
     const time = document.getElementById('time-search').value;
-  
-    let query = `/api/data?`;
-  
-    if (temp) query += `temperature=${temp}&`;
-    if (humidity) query += `humidity=${humidity}&`;
-    if (light) query += `light=${light}&`;
-    if (time) query += `time=${time}&`;
-  
-    fetch(query)
-      .then(response => response.json())
-      .then(data => {
-        const tbody = document.getElementById('device-data');
-        tbody.innerHTML = ''; 
-  
-        data.forEach(item => {
-          const row = `<tr>
-                        <td>${item.id}</td>
-                        <td>${item['nhiệt_độ']}</td>
-                        <td>${item['độ_ẩm']}</td>
-                        <td>${item['ánh_sáng']}</td>
-                        <td>${item['thời_gian_đo']=convertToUTC7(item['thời_gian_đo'])}</td>
-                      </tr>`;
-          tbody.innerHTML += row;
-        });
-      });
-  });
-  
-  // Sort
-  document.querySelectorAll('.sortable').forEach(column => {
+
+    // Lưu các tham số tìm kiếm
+    searchParams = {
+        temperature: temp,
+        humidity: humidity,
+        light: light,
+        time: time
+    };
+
+    currentPage = 1;
+    fetchData(); // Gọi lại hàm fetchData với các tham số tìm kiếm
+});
+
+
+// Sort functionality
+document.querySelectorAll('.sortable').forEach(column => {
     column.addEventListener('click', () => {
-      const sortBy = column.getAttribute('data-sort');
-      const order = column.classList.contains('asc') ? 'desc' : 'asc';
-  
-      fetch(`/api/data?sort_by=${sortBy}&order=${order}`)
-        .then(response => response.json())
-        .then(data => {
-          const tbody = document.getElementById('device-data');
-          tbody.innerHTML = ''; 
-  
-          data.forEach(item => {
-            const row = `<tr>
-                          <td>${item.id}</td>
-                          <td>${item['nhiệt_độ']}</td>
-                          <td>${item['độ_ẩm']}</td>
-                          <td>${item['ánh_sáng']}</td>
-                          <td>${item['thời_gian_đo']=convertToUTC7(item['thời_gian_đo'])}</td>
-                        </tr>`;
-            tbody.innerHTML += row;
-          });
-          
-          
-          document.querySelectorAll('.sortable').forEach(col => col.classList.remove('asc', 'desc'));
-          column.classList.add(order);
-        });
+        const sortBy = column.getAttribute('data-sort');
+        sortDirection = column.classList.contains('asc') ? -1 : 1; // Toggle sort direction
+        column.classList.toggle('asc', sortDirection === 1);
+        column.classList.toggle('desc', sortDirection === -1);
+
+        // Lưu các tham số sắp xếp
+        sortParams = {
+            sort_by: sortBy,
+            order: sortDirection === 1 ? 'asc' : 'desc'
+        };
+
+        currentPage = 1;
+        fetchData(); // Gọi lại hàm fetchData với các tham số sắp xếp
     });
-  });
-  
+});
+
+// Xử lý chuyển sang trang trước
+$('#prev-page').click(() => {
+    if (currentPage > 1) {
+        currentPage--;
+        $('#page-number').val(currentPage);
+        fetchData(); // Gọi lại API để lấy dữ liệu trang mới
+    }
+});
+
+// Xử lý chuyển sang trang sau
+$('#next-page').click(() => {
+     // Hoặc bạn có thể tính toán số trang dựa trên tổng số hàng từ API
+    currentPage++;
+    $('#page-number').val(currentPage);
+        fetchData(); // Gọi lại API để lấy dữ liệu trang mới
+    
+});
+
+// Thay đổi trang khi nhập vào số trang cụ thể
+$('#page-number').change(function() {
+
+    const newPage = parseInt($(this).val());
+    if (newPage >= 1) { // Đảm bảo trang hợp lệ
+        currentPage = newPage;
+        fetchData(); // Gọi lại API để lấy dữ liệu trang mới
+    }
+});
+// Initial data load
+fetchData();
