@@ -6,7 +6,6 @@ let sortDirection = 1; // 1 for ascending, -1 for descending
 let searchParams = {}; // Lưu các tham số tìm kiếm
 let sortParams = {}; // Lưu các tham số sắp xếp
 
-// Fetch data from the API
 // Hàm lấy dữ liệu từ API với phân trang
 async function fetchData() {
     try {
@@ -38,8 +37,6 @@ async function fetchData() {
     }
 }
 
-
-
 // Convert time to UTC+7
 function convertToUTC7(timeString) {
     const utcDate = new Date(timeString);
@@ -62,6 +59,9 @@ function displayData(filteredData) {
                 <td>${item.temperature}</td>
                 <td>${item.humidity}</td>
                 <td>${item.light}</td>
+                <td>${item.wind}</td>
+                <td>${item.dust}</td>
+                <td>${item.gas}</td>
                 <td>${convertToUTC7(item.time)}</td>
             </tr>
         `);
@@ -89,7 +89,6 @@ function changePage(newPage) {
 }
 // Pagination handling
 
-
 $('#page-size').change(function() {
     pageSize = parseInt($(this).val());
     currentPage = 1;
@@ -110,6 +109,9 @@ document.getElementById('search-btn').addEventListener('click', () => {
     const temp = document.getElementById('temp-search').value;
     const humidity = document.getElementById('humidity-search').value;
     const light = document.getElementById('light-search').value;
+    const wind = document.getElementById('wind-search').value;
+    const dust = document.getElementById('dust-search').value;
+    const gas = document.getElementById('gas-search').value;
     const time = document.getElementById('time-search').value;
 
     // Lưu các tham số tìm kiếm
@@ -117,6 +119,9 @@ document.getElementById('search-btn').addEventListener('click', () => {
         temperature: temp,
         humidity: humidity,
         light: light,
+        wind: wind,
+        dust:dust,
+        gas:gas,
         time: time
     };
 

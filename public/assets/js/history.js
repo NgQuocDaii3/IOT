@@ -83,7 +83,7 @@ document.getElementById('search-btn').addEventListener('click', function() {
 
 // Cập nhật sự kiện sắp xếp
 function sortTable(columnIndex) {
-    const sortFields = ['id', 'tên_thiết_bị', 'hành_động', 'thời_gian_bật_tắt'];
+    const sortFields = ['id', 'device_name', 'action', 'time_action'];
     const sortBy = sortFields[columnIndex];
 
     // Toggle sort order
@@ -115,9 +115,9 @@ function fetchDeviceHistory(search = '', sortBy = sortColumn, sortOrder = sortOr
                 const row = `
                     <tr>
                       <td>${item.id}</td>
-                      <td>${item['tên_thiết_bị']}</td>
-                      <td>${item['hành_động']}</td>
-                      <td>${convertToUTC7(item['thời_gian_bật_tắt'])}</td>
+                      <td>${item['device_name']}</td>
+                      <td>${item['action']}</td>
+                      <td>${convertToUTC7(item['time_action'])}</td>
                     </tr>
                 `;
                 tableBody.innerHTML += row;

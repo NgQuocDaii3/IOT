@@ -4,9 +4,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const mysql = require('mysql2');
 const cors = require('cors');
-
-// MQTT broker information
-const mqttHost = 'mqtt://192.168.93.34';
+// MQTT broker thông tin
+const mqttHost = 'mqtt://192.168.1.25';
 const mqttUser = 'dai';
 const mqttPassword = 'b21dccn025';
 const topic = 'data';
@@ -14,7 +13,7 @@ const led1ControlTopic = 'led1/control';
 const led2ControlTopic = 'led2/control';
 const led3ControlTopic = 'led3/control';
 
-// MySQL database connection
+// MySQL kết nối
 const db = mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -22,7 +21,6 @@ const db = mysql.createConnection({
     database: 'iot'
 });
 
-// Connect to the MySQL database
 db.connect(err => {
     if (err) {
         console.error('Error connecting to MySQL:', err);
@@ -53,7 +51,7 @@ wss.on('connection', ws => {
     mqttClient.on('message', (topic, message) => {
         console.log(`Received message on ${topic}: ${message.toString()}`);
         ws.send(message.toString());
-    });
+    });   
 });
 
 // Xử lí WebSocket client messages gửi lệnh tới MQTT topics
@@ -65,7 +63,8 @@ wss.on('connection', ws => {
     });
 });
 
-// Handle MQTT messages and insert data into MySQL
+
+// Xử lí mqtt message và insert dữ liệu vào db
 mqttClient.on('connect', () => {
     console.log('Connected to MQTT broker');
     mqttClient.subscribe(topic);
@@ -82,15 +81,19 @@ mqttClient.on('message', (topic, message) => {
     currentTime.setHours(currentTime.getHours() + 7);
     const formattedTime = currentTime.toISOString().slice(0, 19).replace('T', ' ');
 
-    // Handle sensor data
+    // sensor-data
     if (topic === 'data') {
         const dataParts = msg.split(', ');
         const temp = parseFloat(dataParts[0].split(': ')[1]);
         const hum = parseFloat(dataParts[1].split(': ')[1]);
         const light = parseFloat(dataParts[2].split(': ')[1]);
+        const wind = parseFloat(dataParts[3].split(': ')[1]);
+        const dust = parseFloat(dataParts[4].split(': ')[1]);
+        const gas = parseFloat(dataParts[5].split(': ')[1]);
 
-        const insertSensorData = `INSERT INTO datasenser (nhiệt_độ, độ_ẩm, ánh_sáng, thời_gian_đo) VALUES (?, ?, ?, ?)`;
-        db.query(insertSensorData, [temp, hum, light, formattedTime], (err) => {
+
+        const insertSensorData = `INSERT INTO datasensor (temperature, humidity, light, wind,dust,gas, time_data) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+        db.query(insertSensorData, [temp, hum, light, wind, dust, gas,formattedTime], (err) => {
             if (err) {
                 console.error('Error inserting sensor data:', err);
             } else {
@@ -99,7 +102,7 @@ mqttClient.on('message', (topic, message) => {
         });
     }
 
-    // Handle LED control commands and log actions in actionhistory table
+    // bật/tắt led
     const deviceMap = {
         [led1ControlTopic]: 'đèn',
         [led2ControlTopic]: 'quạt',
@@ -110,7 +113,7 @@ mqttClient.on('message', (topic, message) => {
         const deviceName = deviceMap[topic];
         const action = msg === 'ON' ? 'bật' : 'tắt';
 
-        const insertActionData = `INSERT INTO actionhistory (tên_thiết_bị, hành_động, thời_gian_bật_tắt) VALUES (?, ?, ?)`;
+        const insertActionData = `INSERT INTO actionhistory (device_name, action, time_action) VALUES (?, ?, ?)`;
         db.query(insertActionData, [deviceName, action, formattedTime], (err) => {
             if (err) {
                 console.error('Error inserting action data:', err);
@@ -130,11 +133,11 @@ app.get('/', (req, res) => {
 
 // API lấy dữ liệu bảng action history
 app.get('/api/action-history', (req, res) => {
-    const { page = 1, pageSize = 10 } = req.query; // Lấy page và pageSize từ query, mặc định page = 1 và pageSize = 10
+    const { page = 1, pageSize = 10 } = req.query; // Lấy page và pageSize từ query
     const offset = (page - 1) * pageSize; // Tính toán offset cho phân trang
     
     const query = `
-        SELECT id, tên_thiết_bị AS deviceName, hành_động AS action, thời_gian_bật_tắt AS time 
+        SELECT id, device_name AS deviceName, action AS action, time_action AS time 
         FROM actionhistory
         LIMIT ? OFFSET ?
     `;
@@ -148,7 +151,7 @@ app.get('/api/action-history', (req, res) => {
     });
 });
 
-//api search&sort devicehistory
+//Api sắp xếp & tìm kiếm device-history
 app.get('/api/device-history', (req, res) => {
     const { search, sortBy, sortOrder, page = 1, pageSize = 10 } = req.query; 
     // Lấy page và pageSize từ query, mặc định page = 1 và pageSize = 10
@@ -159,7 +162,7 @@ app.get('/api/device-history', (req, res) => {
   
     // Điều kiện search
     if (search) {
-        conditions.push(`thời_gian_bật_tắt LIKE '%${search}%'`);
+        conditions.push(`time_action LIKE '%${search}%'`);
     }
   
     // Thêm query điều kiện
@@ -175,7 +178,7 @@ app.get('/api/device-history', (req, res) => {
     // Phân trang
     query += ` LIMIT ? OFFSET ?`;
 
-    // Thực hiện query với phân trang
+    // Thực hiện query 
     db.query(query, [parseInt(pageSize), offset], (err, results) => {
         if (err) {
             return res.status(500).json({ error: err.message });
@@ -187,23 +190,29 @@ app.get('/api/device-history', (req, res) => {
 
 // Tạo API để lấy dữ liệu từ bảng datasenser, bao gồm tìm kiếm, sắp xếp và phân trang
 app.get('/api/sensor-data', (req, res) => {
-    const { temperature, humidity, light, time, sort_by, order, page = 1, pageSize = 10 } = req.query;
+    const { temperature, humidity, light, wind, dust,gas, time, sort_by, order, page = 1, pageSize = 10 } = req.query;
 
-    let query = 'SELECT id, nhiệt_độ AS temperature, độ_ẩm AS humidity, ánh_sáng AS light, thời_gian_đo AS time FROM datasenser WHERE 1=1';
+    let query = 'SELECT id, temperature AS temperature, humidity AS humidity, light AS light, wind AS wind, dust AS dust, gas AS gas, time_data AS time FROM datasensor WHERE 1=1';
 
-    // Search conditions
-    if (temperature) query += ` AND nhiệt_độ LIKE ${db.escape(temperature)}`;
-    if (humidity) query += ` AND độ_ẩm LIKE ${db.escape(humidity)}`;
-    if (light) query += ` AND ánh_sáng LIKE ${db.escape(light)}`;
-    if (time) query += ` AND thời_gian_đo LIKE ${db.escape('%' + time + '%')}`;
+    // Điều kiện tìm kiếm
+    if (temperature) query += ` AND temperature LIKE ${db.escape(temperature)}`;
+    if (humidity) query += ` AND humidity LIKE ${db.escape(humidity)}`;
+    if (light) query += ` AND light LIKE ${db.escape(light)}`;
+    if (wind) query += ` AND wind LIKE ${db.escape(wind)}`;
+    if (dust) query += ` AND dust LIKE ${db.escape(dust)}`;
+    if (gas) query += ` AND gas LIKE ${db.escape(gas)}`;
+    if (time) query += ` AND time_data LIKE ${db.escape('%' + time + '%')}`;
 
-    // Sorting conditions
+    // Điều kiện sắp xếp
     const validSortColumns = {
         id: 'id',
-        temperature: 'nhiệt_độ',
-        humidity: 'độ_ẩm',
-        light: 'ánh_sáng',
-        time: 'thời_gian_đo'
+        temperature: 'temperature',
+        humidity: 'humidity',
+        light: 'light',
+        wind:'wind',
+        dust:'dust',
+        gas:'gas',
+        time: 'time_data'
     };
 
     if (validSortColumns[sort_by]) {
@@ -212,11 +221,11 @@ app.get('/api/sensor-data', (req, res) => {
         query += ` ORDER BY ${column} ${sortOrder}`;
     }
 
-    // Pagination logic
+    // tính toán phân trang
     const offset = (page - 1) * pageSize;
     query += ` LIMIT ? OFFSET ?`;
 
-    // Execute the query
+    // Thực hiện query
     db.query(query, [parseInt(pageSize), offset], (err, results) => {
         if (err) {
             console.error('Database query error:', err);
