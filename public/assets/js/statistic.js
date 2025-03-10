@@ -160,7 +160,7 @@ $('#prev-page').click(() => {
 
 // Xử lý chuyển sang trang sau
 $('#next-page').click(() => {
-     // Hoặc bạn có thể tính toán số trang dựa trên tổng số hàng từ API
+     // Hoặc có thể tính toán số trang dựa trên tổng số hàng từ API
     currentPage++;
     $('#page-number').val(currentPage);
         fetchData(); // Gọi lại API để lấy dữ liệu trang mới

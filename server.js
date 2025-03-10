@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 const mysql = require('mysql2');
 const cors = require('cors');
 // MQTT broker thông tin
-const mqttHost = 'mqtt://192.168.1.25';
+const mqttHost = 'mqtt://192.168.174.34';
 const mqttUser = 'dai';
 const mqttPassword = 'b21dccn025';
 const topic = 'data';
@@ -76,6 +76,13 @@ mqttClient.on('connect', () => {
 mqttClient.on('message', (topic, message) => {
     const msg = message.toString();
     console.log(`Received message from ${topic}: ${msg}`);
+
+    // Gửi phản hồi qua WebSocket
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ topic, message: msg }));
+        }
+    });
 
     const currentTime = new Date();
     currentTime.setHours(currentTime.getHours() + 7);

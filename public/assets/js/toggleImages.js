@@ -5,47 +5,53 @@ socket.addEventListener('open', function (event) {
     console.log('WebSocket is connected.');
 });
 
-function toggleImage() {
-  var checkBox = document.getElementById("led");
-  var img = document.getElementById("led-image");
+// Lắng nghe phản hồi từ server
+socket.addEventListener('message', function (event) {
+    const data = JSON.parse(event.data);
 
-  if (checkBox.checked) {
-    // Bật LED 1
-    img.src = "https://img.icons8.com/?size=100&id=WWRW41cpXB4o&format=png&color=000000"; // Hình ảnh trạng thái ON
-    socket.send(JSON.stringify({ topic: "led1/control", message: "ON" })); // Gửi lệnh bật qua WebSocket
-  } else {
-    // Tắt LED 1
-    img.src = "https://img.icons8.com/?size=100&id=tlXZO3hU3TSG&format=png&color=000000"; // Hình ảnh trạng thái OFF
-    socket.send(JSON.stringify({ topic: "led1/control", message: "OFF" })); // Gửi lệnh tắt qua WebSocket
-  }
+    // Kiểm tra topic và cập nhật giao diện
+    if (data.topic === "led1/control") {
+        setTimeout(() => {
+            const img = document.getElementById("led-image");
+            img.src = data.message === "ON"
+                ? "https://img.icons8.com/?size=100&id=WWRW41cpXB4o&format=png&color=000000" // Hình ảnh trạng thái ON
+                : "https://img.icons8.com/?size=100&id=tlXZO3hU3TSG&format=png&color=000000"; // Hình ảnh trạng thái OFF
+        }, 2000);
+    } else if (data.topic === "led2/control") {
+        setTimeout(() => {
+            const img = document.getElementById("fan-image");
+            img.src = data.message === "ON"
+                ? "https://img.icons8.com/?size=100&id=104278&format=png&color=000000" // Hình ảnh trạng thái ON
+                : "https://img.icons8.com/?size=100&id=551&format=png&color=000000"; // Hình ảnh trạng thái OFF
+        }, 2000); 
+    } else if (data.topic === "led3/control") {
+        setTimeout(() => {
+            const img = document.getElementById("air-conditioner-image");
+            img.src = data.message === "ON"
+                ? "https://img.icons8.com/?size=100&id=30044&format=png&color=000000" // Hình ảnh trạng thái ON
+                : "https://img.icons8.com/?size=100&id=Dj3a6QnUGYsr&format=png&color=000000"; // Hình ảnh trạng thái OFF
+        }, 2000); 
+    }
+});
+
+// Gửi lệnh điều khiển
+function toggleDevice(device, topic) {
+    const checkBox = document.getElementById(device);
+    const state = checkBox.checked ? "ON" : "OFF";
+
+    // Gửi lệnh điều khiển qua WebSocket
+    socket.send(JSON.stringify({ topic: topic, message: state }));
+}
+
+// Các hàm điều khiển
+function toggleImage() {
+    toggleDevice("led", "led1/control");
 }
 
 function toggleImage2() {
-  var checkBox = document.getElementById("fan");
-  var img = document.getElementById("fan-image");
-
-  if (checkBox.checked) {
-    // Bật quạt
-    img.src = "https://img.icons8.com/?size=100&id=104278&format=png&color=000000"; // Hình ảnh trạng thái ON
-    socket.send(JSON.stringify({ topic: "led2/control", message: "ON" })); // Gửi lệnh bật quạt
-  } else {
-    // Tắt quạt
-    img.src = "https://img.icons8.com/?size=100&id=551&format=png&color=000000"; // Hình ảnh trạng thái OFF
-    socket.send(JSON.stringify({ topic: "led2/control", message: "OFF" })); // Gửi lệnh tắt quạt
-  }
+    toggleDevice("fan", "led2/control");
 }
 
 function toggleImage3() {
-  var checkBox = document.getElementById("air-conditioner");
-  var img = document.getElementById("air-conditioner-image");
-
-  if (checkBox.checked) {
-    // Bật điều hòa
-    img.src = "https://img.icons8.com/?size=100&id=30044&format=png&color=000000"; // Hình ảnh trạng thái ON
-    socket.send(JSON.stringify({ topic: "led3/control", message: "ON" })); // Gửi lệnh bật điều hòa
-  } else {
-    // Tắt điều hòa
-    img.src = "https://img.icons8.com/?size=100&id=Dj3a6QnUGYsr&format=png&color=000000"; // Hình ảnh trạng thái OFF
-    socket.send(JSON.stringify({ topic: "led3/control", message: "OFF" })); // Gửi lệnh tắt điều hòa
-  }
+    toggleDevice("air-conditioner", "led3/control");
 }
